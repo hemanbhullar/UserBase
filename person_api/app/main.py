@@ -22,6 +22,14 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     return payload
 
+# Dependency to get the current user role from the JWT token
+def get_current_user_role(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials  # Extract token from the Authorization header
+    payload = verify_access_token(token)
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return payload["role"]
+
 # Dependency to get the database session
 def get_db():
     db = SessionLocal()
@@ -54,7 +62,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
     # Hash password and create user
     hashed_password = hash_password(user.password)
-    db_user = User(username=user.username, email=user.email, password_hash=hashed_password)
+    db_user = User(username=user.username, email=user.email, password_hash=hashed_password, role=user.role)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -68,5 +76,12 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Create JWT token
-    access_token = create_access_token(data={"sub": db_user.username})
+    access_token = create_access_token(data={"sub": db_user.username, "role": db_user.role})
     return {"access_token": access_token, "token_type": "bearer"}
+
+# Protect routes based on roles
+@app.get("/admin/")
+def admin_only(current_role: str = Depends(get_current_user_role)):
+    if current_role != "admin":
+        raise HTTPException(status_code=403, detail="Access forbidden")
+    return {"message": "Welcome, Admin!"}
