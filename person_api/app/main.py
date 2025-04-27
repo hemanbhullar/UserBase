@@ -7,9 +7,18 @@ from app.schemas.person import UserCreate, UserOut, UserLogin
 from app.core.auth import hash_password, verify_password, create_access_token, verify_access_token
 from app.core.config import SessionLocal
 from app.models.person import User
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Frontend URL (adjust port if needed)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+)
 # HTTPBearer will be used to extract the token from the Authorization header
 security = HTTPBearer()
 
