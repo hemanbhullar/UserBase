@@ -85,3 +85,21 @@ def admin_only(current_role: str = Depends(get_current_user_role)):
     if current_role != "admin":
         raise HTTPException(status_code=403, detail="Access forbidden")
     return {"message": "Welcome, Admin!"}
+
+
+@app.post("/refresh/")
+def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
+    # Verify the refresh token and get the user data
+    payload = verify_access_token(refresh_token)
+    if not payload or 'sub' not in payload:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    
+    username = payload["sub"]
+    db_user = db.query(User).filter(User.username == username).first()
+    
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Create a new access token and return it
+    new_access_token = create_access_token(data={"sub": db_user.username})
+    return {"access_token": new_access_token, "token_type": "bearer"}
